@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import Body, FastAPI, status, HTTPException, Depends, Response, APIRouter
 from sqlalchemy.orm import Session
 from ..database import get_db
-
+from sqlalchemy import func
 
 router = APIRouter(
     prefix = "/posts",
@@ -11,24 +11,36 @@ router = APIRouter(
     )
 
 #@app.get("/posts", response_model=schemas.Post) bcz we need a list of post not one individual so we need List from typing
-@router.get("/", response_model=List[schemas.Post]) 
+@router.get("/",response_model=List[schemas.PostOut]) 
 def get_posts(db: Session = Depends(get_db), current_user : int = Depends(oauth2.get_current_user),
               limit:int = 10, skip:int = 0,search : Optional[str] = ""):
     #cursor.execute("""SELECT * FROM posts""")
     #posts = cursor.fetchall()
     #print(posts)
-    posts = db.query(models.Post).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all() # to get all posts like in Social Media apps .all() gets all records
+    posts = db.query(models.Post).filter(
+        models.Post.title.contains(search)
+        ).limit(limit).offset(skip).all() # to get all posts like in Social Media apps .all() gets all records
     #print(current_user.id) just for debugging
     #posts = db.query(models.Post).filter(models.Post.owner_id==current_user.id).all() #returns posts of logged in user only - like in notes app
     #print(posts) - returns raw sql query
     # print(limit)
     # print(search) - #%20 is space in url encoding
     # print(skip)
-    results = db.query(models.Post).join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True)
+    results = db.query(
+        models.Post, 
+        func.count(models.Vote.post_id).label("n_votes")
+        ).join(
+            models.Vote,
+            models.Vote.post_id == models.Post.id,
+            isouter=True
+        ).group_by(models.Post.id).filter(
+        models.Post.title.contains(search)
+        ).limit(limit).offset(skip).all()
+
     #reason for isouter=True is to get posts even if they have 0 votes and sqlalchemy by default does inner join
     #whereas SQL joins are outr by default
-    print(results)
-    return posts
+    
+    return results
 
 
 
@@ -54,13 +66,21 @@ def create_posts(post: schemas.PostCreate,db: Session = Depends(get_db), current
 
 
 
-@router.get("/{id}", response_model=schemas.Post)
+@router.get("/{id}", response_model=schemas.PostOut)
 def get_post(id: int, db: Session = Depends(get_db), current_user : int = Depends(oauth2.get_current_user)):
     # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (id,))
     # post = cursor.fetchone()
     # print(post)
 
-    post = db.query(models.Post).filter(models.Post.id == id).first()
+    #post = db.query(models.Post).filter(models.Post.id == id).first()
+    post = db.query(
+        models.Post, 
+        func.count(models.Vote.post_id).label("n_votes")
+        ).join(
+            models.Vote,
+            models.Vote.post_id == models.Post.id,
+            isouter=True
+        ).group_by(models.Post.id).filter(models.Post.id == id).first()
     #logging.info(post.__dict__) #not needed just to see post printed in terminal safer+reliable than print()
     #.__dict__ unpacks the value, colmns in this case
     if not post:

@@ -11,7 +11,7 @@ password = quote_plus(settings.database_password)
 
 
 # db variable name = 'type of db://<username>:<password>@<ip-address/hostname>/database-name-to-connect
-#SQLALCHEMY_DATABASE_URL = 'postgresql://postgres:1115%40xxx@localhost/fastapi' hardcoded - old way, now using config
+
 SQLALCHEMY_DATABASE_URL = f'postgresql://{settings.database_username}:{password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}'
 #engine for SQL alchemy to connect to db
 engine = create_engine(SQLALCHEMY_DATABASE_URL) 
@@ -22,7 +22,7 @@ Base = declarative_base()
 
 #createing Dependancy copy-pasted
 def get_db():
-    db = sessionLocal()
+    db = sessionLocal() #uhaha
     try:
         yield db
     finally:

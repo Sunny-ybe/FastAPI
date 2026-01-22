@@ -39,6 +39,13 @@ class Post(PostBase):
     class Config:
         from_attributes = True
 
+class PostOut(BaseModel):
+    Post: Post
+    n_votes : int
+
+    model_config = ConfigDict(from_attributes = True)
+
+
 class UserCreate(BaseModel):
     email: EmailStr #imported from pydantic needs email-validator library 
     password:str
